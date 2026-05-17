@@ -1,0 +1,48 @@
+# ============================================
+# Face Detection Data Collection — Configuration
+# ============================================
+# Camera credentials are loaded from ../.env
+# Do NOT put passwords in this file.
+# ============================================
+
+camera:
+  camera_id: "camera_01"
+  # RTSP URL is constructed at runtime from .env variables.
+  # Override: set full URL here to skip env-based construction.
+  rtsp_url: null
+  resolution: [1920, 1080]
+  fps_cap: 5              # Process 5 fps — enough for face capture, ~3x less CPU
+  reconnect_delay: 2      # Initial reconnect delay (seconds)
+  max_reconnect_delay: 30  # Max backoff delay (seconds)
+  transport: "tcp"        # tcp or udp (tcp recommended for Hikvision)
+
+detection:
+  model_name: "buffalo_l"               # InsightFace SCRFD package
+  model_path: null                       # Reserved; InsightFace handles model cache/download
+  confidence: 0.2                        # Lowered further — CCTV angles + small faces
+  min_face_size: 10                      # Lowered to 10 — real faces are 15-25px at this distance
+  input_size: [640, 640]                 # Increased from 320 — critical for small face detection
+  max_frame_side: 1920                   # Full 1080p — no downscaling for maximum detail
+  gpu_id: 0                              # CUDA GPU ID (0 = first GPU)
+
+tracker:
+  backend: "bytetrack"       # bytetrack or iou
+  iou_threshold: 0.4         # Min IoU to match detection to existing track
+  capture_interval_seconds: 2  # Save one crop every 2 seconds per track
+  max_faces: 20              # Max simultaneous tracked faces
+  stale_timeout: 30          # Remove track if unseen for N seconds
+
+storage:
+  output_dir: "data/raw_faces"
+  image_size: [512, 512]     # Higher saved pixel detail from main stream crops
+  quality: 98                # PNG quality (near-lossless)
+  blur_threshold: 5.0        # Very permissive to avoid dropping captures during collection
+  save_all_captures: true    # Persist every capture event; no blur-based drop
+  max_queue_size: 0          # Unbounded queue to avoid dropping save events
+  padding: 0.4               # Face crop padding (40% — more context for recognition)
+
+dashboard:
+  enabled: true
+  host: "0.0.0.0"
+  port: 5000
+  max_gallery_size: 50       # Max faces shown in gallery

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Detection CCTV — Live Monitor</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <span class="logo">📷</span>
+                <h1>Face Detection CCTV — Live Monitor</h1>
+            </div>
+            <div class="header-right">
+                <span id="connection-indicator" class="status-dot disconnected"></span>
+                <span id="connection-text">Connecting...</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Live Video Feed -->
+            <div class="video-panel">
+                <div class="panel-header">
+                    <span>🎥 Live Camera Feed</span>
+                    <span id="fps-badge" class="badge">0 FPS</span>
+                </div>
+                <div class="video-container">
+                    <img id="video-feed" src="/video_feed" alt="Live Camera Feed">
+                    <div id="video-overlay" class="video-overlay">
+                        <span>⏳ Waiting for camera...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Face Gallery -->
+            <div class="gallery-panel">
+                <div class="panel-header">
+                    <span>👤 Captured Faces</span>
+                    <span id="gallery-count" class="badge">0</span>
+                </div>
+                <div id="face-gallery" class="face-gallery">
+                    <div class="gallery-placeholder">
+                        <span>No faces captured yet</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Bar -->
+        <footer class="stats-bar">
+            <div class="stat">
+                <span class="stat-label">📊 Today</span>
+                <span id="stat-today" class="stat-value">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">📁 Total</span>
+                <span id="stat-total" class="stat-value">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">👁 Active Tracks</span>
+                <span id="stat-tracks" class="stat-value">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">🚫 Skipped (Blur)</span>
+                <span id="stat-blur" class="stat-value">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">⚡ Detection FPS</span>
+                <span id="stat-fps" class="stat-value">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">📡 Camera</span>
+                <span id="stat-camera" class="stat-value status-disconnected">Disconnected</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "architectures": [
+    "CVLFaceRecognitionModel"
+  ],
+  "auto_map": {
+    "AutoConfig": "wrapper.ModelConfig",
+    "AutoModel": "wrapper.CVLFaceRecognitionModel"
+  },
+  "conf": {
+    "color_space": "RGB",
+    "freeze": false,
+    "input_size": [
+      3,
+      112,
+      112
+    ],
+    "name": "ir50",
+    "output_dim": 512,
+    "start_from": "",
+    "yaml_path": "models/iresnet/configs/v1_ir50.yaml"
+  },
+  "torch_dtype": "float32",
+  "transformers_version": "4.33.0"
+}
