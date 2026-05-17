@@ -1,0 +1,65 @@
+# ==============================
+# Credentials — NEVER commit
+# ==============================
+.env
+.env.*
+
+# ==============================
+# Data directories (large files)
+# ==============================
+Data_Collection/data/
+Training/data/
+Recognition/data/
+Data_Augmentation/Augmented_Data/
+Data_Augmentation/Data_Gathering/
+Data_Augmentation/dataset_rejected/
+
+# ==============================
+# Image files (augmentation & gathering)
+# ==============================
+*.png
+*.jpg
+*.jpeg
+
+# ==============================
+# Model files (large binaries)
+# ==============================
+models/
+*.onnx
+*.pth
+*.pt
+*.safetensors
+
+# ==============================
+# Python
+# ==============================
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# ==============================
+# Logs
+# ==============================
+logs/
+*.log
+
+# ==============================
+# IDE / Editor
+# ==============================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==============================
+# OS generated
+# ==============================
+Thumbs.db
+Desktop.ini
+.DS_Store
