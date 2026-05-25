@@ -32,10 +32,10 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH          = os.path.join(_HERE, "face_model.pkl")
 COSINE_THRESHOLD    = 0.42   # below this → Unknown  (tune 0.38–0.55)
 DET_SCORE_MIN       = 0.75   # InsightFace detection confidence — drop below this
-FACE_SIZE_MIN       = 60     # minimum face width AND height in pixels (original res)
+FACE_SIZE_MIN       = 80     # minimum face width AND height in pixels — raised to reject tiny noisy faces
 DEBUG_SCORES        = True   # print cosine scores to terminal — set False once tuned
-DET_SIZE            = (320, 320)
-PROCESS_SCALE       = 0.5    # downscale frame before inference
+DET_SIZE            = (640, 640)
+ENHANCE_LIVE_FRAME  = True   # CLAHE on live frame to normalise CCTV lighting
 DASHBOARD_PORT      = 5001
 
 # Temporal voting — how many frames to accumulate before committing an identity
@@ -317,6 +317,19 @@ _model_info      = (None, [])  # (gallery_dict, class_names)
 
 
 # =====================================================================
+#  CLAHE PRE-PROCESSING — normalise CCTV lighting before embedding
+# =====================================================================
+_clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+
+def enhance_frame(frame):
+    """Apply CLAHE to the L channel to even out IR / uneven CCTV lighting."""
+    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+    l, a, b = cv2.split(lab)
+    l = _clahe.apply(l)
+    return cv2.cvtColor(cv2.merge([l, a, b]), cv2.COLOR_LAB2BGR)
+
+
+# =====================================================================
 #  COSINE CLASSIFY
 # =====================================================================
 def cosine_classify(embedding, gallery):
@@ -437,25 +450,25 @@ def inference_loop(camera, face_app, gallery):
             time.sleep(0.05)
             continue
 
-        # --- Downscale for inference ---
-        small = cv2.resize(frame, None,
-                           fx=PROCESS_SCALE, fy=PROCESS_SCALE,
-                           interpolation=cv2.INTER_LINEAR)
-        faces     = face_app.get(small)
-        scale_inv = 1.0 / PROCESS_SCALE
+        # --- Enhance frame to normalise CCTV lighting ---
+        if ENHANCE_LIVE_FRAME:
+            frame = enhance_frame(frame)
 
-        # --- Filter detections before anything else ---
+        # --- Run detection at full CCTV resolution ---
+        faces = face_app.get(frame)
+
+        # --- Filter detections ---
         # det_score < DET_SCORE_MIN  → background false positive (texture, poster, reflection)
         # face too small             → too far away or a spurious blob, not worth recognising
         faces = [
             f for f in faces
             if f.det_score >= DET_SCORE_MIN
-            and (f.bbox[2] - f.bbox[0]) * scale_inv >= FACE_SIZE_MIN
-            and (f.bbox[3] - f.bbox[1]) * scale_inv >= FACE_SIZE_MIN
+            and (f.bbox[2] - f.bbox[0]) >= FACE_SIZE_MIN
+            and (f.bbox[3] - f.bbox[1]) >= FACE_SIZE_MIN
         ]
 
-        # --- Scale bboxes back to original resolution ---
-        bboxes = [face.bbox * scale_inv for face in faces]
+        # --- Bboxes already in original resolution ---
+        bboxes = [face.bbox for face in faces]
 
         # --- Assign track IDs via centroid matching ---
         track_ids = tracker.update(bboxes)
@@ -485,8 +498,9 @@ def inference_loop(camera, face_app, gallery):
 
             # Majority vote across the buffer
             voted_name, vote_count = Counter(n for n, _ in buf).most_common(1)[0]
-            # Mean score only for the winning name
-            voted_score = float(np.mean([s for n, s in buf if n == voted_name]))
+            # Median of top scores for the winning name — ignores bad frames
+            winner_scores = sorted([s for n, s in buf if n == voted_name], reverse=True)
+            voted_score = float(np.median(winner_scores[:max(3, len(winner_scores)//2)]))
 
             if vote_count < VOTE_THRESHOLD:
                 # No clear winner yet — show leading candidate as uncertain

@@ -8,7 +8,7 @@ echo   STAGE 3a — Train Recognition Model
 echo   ArcFace Embeddings -^> SVM Classifier
 echo ============================================
 echo.
-echo  Reads from:  Data_Augmentation\Augmented_Data\
+echo  Reads from:  Data_Augmentation\Dataset_Clicked\
 echo  Saves to:    Recognition\face_model.pkl
 echo.
 echo  Run this whenever you:
@@ -44,8 +44,7 @@ python train_embeddings.py
 IF ERRORLEVEL 1 (
     echo.
     echo [ERROR] Training failed.
-    echo         Make sure Data_Augmentation\Augmented_Data\ has images.
-    echo         Run stage2_augment.bat first.
+    echo         Make sure Data_Augmentation\Dataset_Clicked\ has images.
     pause
     exit /b 1
 )

@@ -36,8 +36,8 @@ MODEL_PATH          = os.path.join(_HERE, "face_model_adaface.pkl")
 COSINE_THRESHOLD    = 0.42
 DET_SCORE_MIN       = 0.75
 FACE_SIZE_MIN       = 60
-DET_SIZE            = (320, 320)
-PROCESS_SCALE       = 0.5
+DET_SIZE            = (640, 640)
+PROCESS_SCALE       = 1.0     # full CCTV resolution — no downscaling
 DASHBOARD_PORT      = 5002       # separate port so both ArcFace + AdaFace can run together
 VOTE_WINDOW         = 15
 VOTE_THRESHOLD      = 9
@@ -406,21 +406,19 @@ def inference_loop(camera, detector, gallery):
             time.sleep(0.05)
             continue
 
-        small     = cv2.resize(frame, None, fx=PROCESS_SCALE, fy=PROCESS_SCALE,
-                               interpolation=cv2.INTER_LINEAR)
-        faces     = detector.get(small)
-        scale_inv = 1.0 / PROCESS_SCALE
+        # --- Run detection at full CCTV resolution ---
+        faces = detector.get(frame)
 
         # Filter by detection score and face size
         faces = [
             f for f in faces
             if f.det_score >= DET_SCORE_MIN
-            and (f.bbox[2]-f.bbox[0]) * scale_inv >= FACE_SIZE_MIN
-            and (f.bbox[3]-f.bbox[1]) * scale_inv >= FACE_SIZE_MIN
+            and (f.bbox[2]-f.bbox[0]) >= FACE_SIZE_MIN
+            and (f.bbox[3]-f.bbox[1]) >= FACE_SIZE_MIN
             and f.kps is not None
         ]
 
-        bboxes    = [f.bbox * scale_inv for f in faces]
+        bboxes    = [f.bbox for f in faces]
         track_ids = tracker.update(bboxes)
 
         new_log_entries = []

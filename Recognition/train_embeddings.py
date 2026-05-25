@@ -12,7 +12,7 @@ _HERE        = os.path.dirname(os.path.abspath(__file__))
 # Averaging 300+ distorted embeddings pulls the mean away from the person's
 # real face — cosine similarity at inference then scores lower than expected.
 # Clean originals give the tightest, most representative mean embedding.
-DATA_DIR     = os.path.join(_HERE, "..", "Data_Augmentation", "Augmented_Data")
+DATA_DIR     = os.path.join(_HERE, "..", "Data_Augmentation", "Dataset_Clicked")
 MODEL_OUTPUT = os.path.join(_HERE, "face_model.pkl")
 DET_SCORE_MIN = 0.70   # skip low-confidence detections inside training images
 # ==================================

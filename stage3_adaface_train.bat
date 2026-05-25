@@ -5,7 +5,7 @@ color 0E
 echo.
 echo ============================================
 echo   AdaFace - Build Recognition Gallery
-echo   Reads from: Data_Augmentation\Augmented_Data\
+echo   Reads from: Data_Augmentation\Dataset_Clicked\
 echo   Saves to:   Recognition\face_model_adaface.pkl
 echo ============================================
 echo.

@@ -28,7 +28,7 @@ MODEL_DIR  = os.path.join(_HERE, "adaface_assets", "cvlface_model")
 
 # Use original clean crops for the gallery — not augmented ones.
 # (Augmented embeddings are noisy; a clean mean is more discriminative.)
-DATA_DIR     = os.path.join(_HERE, "..", "Data_Augmentation", "Augmented_Data")
+DATA_DIR     = os.path.join(_HERE, "..", "Data_Augmentation", "Dataset_Clicked")
 MODEL_OUTPUT = os.path.join(_HERE, "face_model_adaface.pkl")
 
 DET_SCORE_MIN = 0.70   # skip low-confidence detections in source images
