@@ -23,6 +23,7 @@ from collections import deque, Counter
 from dotenv import load_dotenv
 from insightface.app import FaceAnalysis
 from flask import Flask, Response, render_template_string
+from attendance_sender import mark_attendance
 
 # =====================================================================
 #  SETTINGS
@@ -33,7 +34,9 @@ MODEL_PATH          = os.path.join(_HERE, "face_model.pkl")
 COSINE_THRESHOLD    = 0.42   # below this → Unknown  (tune 0.38–0.55)
 DET_SCORE_MIN       = 0.75   # InsightFace detection confidence — drop below this
 FACE_SIZE_MIN       = 80     # minimum face width AND height in pixels — raised to reject tiny noisy faces
+FACE_SIZE_MAX       = 300    # reject faces larger than this — catches phones held close
 DEBUG_SCORES        = True   # print cosine scores to terminal — set False once tuned
+LIVENESS_CHECK      = True   # anti-spoof: reject screen/print texture
 DET_SIZE            = (640, 640)
 ENHANCE_LIVE_FRAME  = True   # CLAHE on live frame to normalise CCTV lighting
 DASHBOARD_PORT      = 5001
@@ -330,6 +333,28 @@ def enhance_frame(frame):
 
 
 # =====================================================================
+#  LIVENESS / ANTI-SPOOF
+# =====================================================================
+def check_liveness(face_bgr):
+    """Return True if the face appears real, False if likely a screen or print."""
+    gray = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2GRAY)
+    f = np.fft.fft2(gray.astype(np.float32))
+    magnitude = np.log1p(np.abs(np.fft.fftshift(f)))
+    h, w = magnitude.shape
+    ch, cw = h // 2, w // 2
+    high_freq = magnitude.copy()
+    high_freq[ch - 10:ch + 10, cw - 10:cw + 10] = 0
+    freq_ratio = np.sum(high_freq) / (np.sum(magnitude) + 1e-8)
+    hsv = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2HSV)
+    sat_std = float(np.std(hsv[:, :, 1]))
+    lap_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+    is_fake = freq_ratio > 0.85 and sat_std < 25 and lap_var < 100
+    if is_fake and DEBUG_SCORES:
+        print(f"[SPOOF] freq={freq_ratio:.2f} sat_std={sat_std:.1f} lap={lap_var:.1f} -> REJECTED")
+    return not is_fake
+
+
+# =====================================================================
 #  COSINE CLASSIFY
 # =====================================================================
 def cosine_classify(embedding, gallery):
@@ -463,8 +488,8 @@ def inference_loop(camera, face_app, gallery):
         faces = [
             f for f in faces
             if f.det_score >= DET_SCORE_MIN
-            and (f.bbox[2] - f.bbox[0]) >= FACE_SIZE_MIN
-            and (f.bbox[3] - f.bbox[1]) >= FACE_SIZE_MIN
+            and FACE_SIZE_MIN <= (f.bbox[2] - f.bbox[0]) <= FACE_SIZE_MAX
+            and FACE_SIZE_MIN <= (f.bbox[3] - f.bbox[1]) <= FACE_SIZE_MAX
         ]
 
         # --- Bboxes already in original resolution ---
@@ -479,6 +504,14 @@ def inference_loop(camera, face_app, gallery):
         now        = time.time()
 
         for face, bbox, tid in zip(faces, bboxes, track_ids):
+
+            # --- Liveness check on face crop ---
+            if LIVENESS_CHECK:
+                x1, y1, x2, y2 = [max(0, int(v)) for v in bbox]
+                crop = frame[y1:y2, x1:x2]
+                if crop.size > 0 and not check_liveness(crop):
+                    draw_box(frame, bbox, "SPOOF", 0.0, "unknown")
+                    continue
 
             # --- Cosine classify this single frame ---
             raw_name, raw_score = cosine_classify(face.embedding, gallery)
@@ -524,13 +557,15 @@ def inference_loop(camera, face_app, gallery):
                 committed_names[tid] = voted_name
 
             if is_known:
+                ts = time.strftime("%Y-%m-%d %H:%M:%S")
+                mark_attendance(voted_name, ts)
                 last_logged = _log_cooldown.get(voted_name, 0)
                 if now - last_logged >= LOG_COOLDOWN_SECONDS:
                     _log_cooldown[voted_name] = now
                     new_log_entries.append({
                         "name":       voted_name,
                         "confidence": int(voted_score * 100),
-                        "time":       time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "time":       ts,
                     })
 
         # --- FPS ---

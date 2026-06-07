@@ -24,6 +24,7 @@ from collections import deque, Counter
 from dotenv import load_dotenv
 from insightface.app import FaceAnalysis
 from flask import Flask, Response, render_template_string
+from attendance_sender import mark_attendance
 
 # =====================================================================
 #  SETTINGS
@@ -36,6 +37,7 @@ MODEL_PATH          = os.path.join(_HERE, "face_model_adaface.pkl")
 COSINE_THRESHOLD    = 0.42
 DET_SCORE_MIN       = 0.75
 FACE_SIZE_MIN       = 60
+FACE_SIZE_MAX       = 300        # reject faces larger than this — catches phones held close
 DET_SIZE            = (640, 640)
 PROCESS_SCALE       = 1.0     # full CCTV resolution — no downscaling
 DASHBOARD_PORT      = 5002       # separate port so both ArcFace + AdaFace can run together
@@ -45,6 +47,7 @@ LOG_COOLDOWN_SECONDS = 15
 TRACKER_MAX_DIST    = 150
 TRACKER_MAX_AGE     = 20
 DEBUG_SCORES        = True       # set False once happy with results
+LIVENESS_CHECK      = True       # anti-spoof: reject screen/print texture
 
 # =====================================================================
 #  COLORS (BGR)
@@ -260,6 +263,40 @@ def get_embedding(aligned_bgr):
 
 
 # =====================================================================
+#  LIVENESS / ANTI-SPOOF
+#  Catches phone screens, printed photos, and tablet video replays.
+#  Real skin has irregular micro-texture; screens/paper are periodic/flat.
+# =====================================================================
+def check_liveness(aligned_bgr):
+    """Return True if the face appears to be a real person, False if likely
+    a screen or printed photo.  Uses three fast heuristics — no extra model."""
+    gray = cv2.cvtColor(aligned_bgr, cv2.COLOR_BGR2GRAY)
+
+    # 1. Frequency spectrum — screens produce periodic peaks (moiré)
+    f = np.fft.fft2(gray.astype(np.float32))
+    magnitude = np.log1p(np.abs(np.fft.fftshift(f)))
+    h, w = magnitude.shape
+    ch, cw = h // 2, w // 2
+    high_freq = magnitude.copy()
+    high_freq[ch - 10:ch + 10, cw - 10:cw + 10] = 0
+    freq_ratio = np.sum(high_freq) / (np.sum(magnitude) + 1e-8)
+
+    # 2. Saturation variance — real skin varies; screens have narrow gamut
+    hsv = cv2.cvtColor(aligned_bgr, cv2.COLOR_BGR2HSV)
+    sat_std = float(np.std(hsv[:, :, 1]))
+
+    # 3. Laplacian variance — real faces have depth-driven edges; flat media don't
+    lap_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+
+    is_fake = freq_ratio > 0.85 and sat_std < 25 and lap_var < 100
+
+    if is_fake and DEBUG_SCORES:
+        print(f"[SPOOF] freq={freq_ratio:.2f} sat_std={sat_std:.1f} lap={lap_var:.1f} -> REJECTED")
+
+    return not is_fake
+
+
+# =====================================================================
 #  COSINE CLASSIFY
 # =====================================================================
 def cosine_classify(embedding, gallery):
@@ -409,12 +446,12 @@ def inference_loop(camera, detector, gallery):
         # --- Run detection at full CCTV resolution ---
         faces = detector.get(frame)
 
-        # Filter by detection score and face size
+        # Filter by detection score and face size (min AND max)
         faces = [
             f for f in faces
             if f.det_score >= DET_SCORE_MIN
-            and (f.bbox[2]-f.bbox[0]) >= FACE_SIZE_MIN
-            and (f.bbox[3]-f.bbox[1]) >= FACE_SIZE_MIN
+            and FACE_SIZE_MIN <= (f.bbox[2]-f.bbox[0]) <= FACE_SIZE_MAX
+            and FACE_SIZE_MIN <= (f.bbox[3]-f.bbox[1]) <= FACE_SIZE_MAX
             and f.kps is not None
         ]
 
@@ -428,9 +465,13 @@ def inference_loop(camera, detector, gallery):
 
         for face, bbox, tid in zip(faces, bboxes, track_ids):
             # Scale landmarks back to original resolution and align
-            kps     = face.kps * scale_inv
+            kps     = face.kps
             aligned = align_112(frame, kps)
             if aligned is None:
+                continue
+
+            if LIVENESS_CHECK and not check_liveness(aligned):
+                draw_box(frame, bbox, "SPOOF", 0.0, "unknown")
                 continue
 
             emb              = get_embedding(aligned)
@@ -458,13 +499,15 @@ def inference_loop(camera, detector, gallery):
 
             if is_known:
                 recognized += 1
+                ts = time.strftime("%Y-%m-%d %H:%M:%S")
+                mark_attendance(voted_name, ts)
                 last_logged = _log_cooldown.get(voted_name, 0)
                 if now - last_logged >= LOG_COOLDOWN_SECONDS:
                     _log_cooldown[voted_name] = now
                     new_log_entries.append({
                         "name":       voted_name,
                         "confidence": int(voted_score * 100),
-                        "time":       time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "time":       ts,
                     })
             else:
                 unknown += 1
