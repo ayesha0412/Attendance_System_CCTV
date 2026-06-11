@@ -1,0 +1,43 @@
+# ============================================================
+#  Recognition Configuration
+#  All tunable settings in one place.
+#  Camera credentials & API keys are loaded from ../.env
+# ============================================================
+
+server:
+  host: "0.0.0.0"
+  max_log_entries: 50
+  # Port is set per entry point: 5002 (AdaFace), 5001 (ArcFace)
+
+detection:
+  model_name: "buffalo_l"
+  det_size: [640, 640]
+  score_min: 0.65            # InsightFace detection confidence cutoff (0.65 catches edge faces)
+  face_size_min: 60          # minimum face width/height in pixels
+  face_size_max: 300         # maximum — rejects phones held close to camera
+
+recognition:
+  cosine_threshold: 0.42     # below this -> Unknown  (tune 0.38-0.55)
+  vote_window: 15            # rolling buffer length  (~1 sec at 15 fps)
+  vote_threshold: 9          # need 9/15 (60%) agreement to commit identity
+  log_cooldown_seconds: 15   # min seconds between attendance logs per person
+  debug_scores: true         # print cosine scores to terminal (set false in production)
+  liveness_check: true       # anti-spoof: reject screen/print texture
+
+preprocessing:
+  enhance_clahe: false       # CLAHE lighting normalization (recommended for ArcFace)
+  process_scale: 1.0         # frame downscale factor (1.0 = full CCTV resolution)
+
+tracker:
+  max_dist: 150              # pixels — max centroid distance to match between frames
+  max_age: 20                # frames — drop track after this many missed detections
+
+camera:
+  buffer_size: 1
+  target_fps: 30               # cap processing rate (saves CPU, camera outputs ~25-30 anyway)
+
+logging:
+  level: "INFO"              # DEBUG, INFO, WARNING, ERROR
+  file: "logs/recognition.log"
+  max_bytes: 10485760        # 10 MB per log file
+  backup_count: 5            # keep 5 rotated log files

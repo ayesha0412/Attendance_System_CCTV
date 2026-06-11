@@ -1,38 +1,60 @@
-# ==============================
-# Credentials — NEVER commit
-# ==============================
+# =====================================================================
+# Credentials & secrets — NEVER commit
+# =====================================================================
 .env
 .env.*
+!.env.example
 
-# ==============================
-# Data directories (large files)
-# ==============================
+# =====================================================================
+# Employee PII (personally identifiable information)
+# =====================================================================
+# Master employee list with names + IDs
+Recognition/employees.csv
+
+# SQLite attendance database + all backups
+Recognition/attendance.db
+Recognition/attendance.db-journal
+Recognition/attendance.db-wal
+Recognition/attendance.db-shm
+Recognition/attendance.db.backup_*
+
+# =====================================================================
+# Training datasets — face images are PII
+# =====================================================================
 Data_Collection/data/
-Training/data/
-Recognition/data/
 Data_Augmentation/Augmented_Data/
 Data_Augmentation/Data_Gathering/
+Data_Augmentation/Dataset_Clicked/
 Data_Augmentation/dataset_rejected/
+Training/data/
+Recognition/data/
 
-# ==============================
-# Image files (augmentation & gathering)
-# ==============================
+# =====================================================================
+# Image files (anywhere — face captures)
+# =====================================================================
 *.png
 *.jpg
 *.jpeg
+*.bmp
+*.webp
 
-# ==============================
-# Model files (large binaries)
-# ==============================
+# =====================================================================
+# Trained models & gallery embeddings (large binaries + PII)
+# =====================================================================
 models/
+*.pkl
 *.onnx
 *.pth
 *.pt
 *.safetensors
 
-# ==============================
+# AdaFace pretrained weights (downloaded by setup_adaface.py)
+Recognition/adaface_assets/cvlface_model/pretrained_model/
+Recognition/adaface_assets/cvlface_model/__pycache__/
+
+# =====================================================================
 # Python
-# ==============================
+# =====================================================================
 __pycache__/
 *.pyc
 *.pyo
@@ -42,24 +64,34 @@ build/
 .venv/
 venv/
 env/
+.pytest_cache/
+.mypy_cache/
 
-# ==============================
-# Logs
-# ==============================
+# =====================================================================
+# Logs & runtime output
+# =====================================================================
 logs/
 *.log
 
-# ==============================
+# =====================================================================
 # IDE / Editor
-# ==============================
+# =====================================================================
 .vscode/
 .idea/
 *.swp
 *.swo
+*.swn
 
-# ==============================
+# =====================================================================
 # OS generated
-# ==============================
+# =====================================================================
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# =====================================================================
+# Notes & local scratch files
+# =====================================================================
+notes/
+scratch/
+TODO.md

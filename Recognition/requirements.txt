@@ -1,6 +1,32 @@
-opencv-python>=4.8.0
-numpy>=1.24.0
-insightface>=0.7.3
+# ============================================
+#  Face Recognition — Python Dependencies
+# ============================================
+# Pin major.minor to prevent breaking changes.
+# Run: pip install -r requirements.txt
+
+# Core ML
+opencv-python>=4.8.0,<5.0
+numpy>=1.24.0,<2.0
+insightface>=0.7.3,<0.8
 onnxruntime-gpu>=1.20.1
-flask>=3.0.0
-python-dotenv>=1.0.0
+
+# PyTorch (for AdaFace IR-50) — install separately for your CUDA version:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# torch>=2.0.0
+# torchvision>=0.15.0
+
+# AdaFace model dependencies
+omegaconf>=2.3.0
+safetensors>=0.4.0
+
+# Web server
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+jinja2>=3.1.0
+
+# Configuration
+python-dotenv>=1.0.0,<2.0
+PyYAML>=6.0,<7.0
+
+# HTTP client (for push mode attendance API)
+requests>=2.31.0,<3.0
