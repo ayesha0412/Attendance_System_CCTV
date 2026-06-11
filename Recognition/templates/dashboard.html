@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ model_name }} — Live Recognition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #0a0e17; color: #e2e8f0; min-height: 100vh; }
+
+        .app { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 24px;
+            background: linear-gradient(135deg, #1a1f2e, #141824);
+            border: 1px solid #2a3040; border-radius: 12px; margin-bottom: 20px;
+        }
+        .header h1 {
+            font-size: 1.3rem; font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .status { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #94a3b8; }
+        .status-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: #22c55e; box-shadow: 0 0 8px #22c55e88;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .main { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+        @media (max-width: 900px) { .main { grid-template-columns: 1fr; } }
+
+        .video-panel { background: #141824; border: 1px solid #2a3040; border-radius: 12px; overflow: hidden; }
+        .panel-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 20px; border-bottom: 1px solid #2a3040;
+            font-weight: 600; font-size: 0.95rem;
+        }
+        .badge {
+            background: #22c55e22; color: #22c55e;
+            padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+        }
+        .video-container { width: 100%; background: #000; }
+        .video-container img { width: 100%; display: block; }
+
+        .sidebar { display: flex; flex-direction: column; gap: 16px; }
+        .info-card { background: #141824; border: 1px solid #2a3040; border-radius: 12px; padding: 20px; }
+        .info-card h3 {
+            font-size: 0.9rem; color: #94a3b8; margin-bottom: 12px;
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .class-list { display: flex; flex-wrap: wrap; gap: 6px; }
+        .class-tag {
+            background: #1e293b; color: #94a3b8;
+            padding: 5px 10px; border-radius: 6px; font-size: 0.78rem; border: 1px solid #334155;
+        }
+
+        .log-container { max-height: 400px; overflow-y: auto; }
+        .log-container::-webkit-scrollbar { width: 6px; }
+        .log-container::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        .log-entry {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 0; border-bottom: 1px solid #1e293b; font-size: 0.85rem;
+        }
+        .log-name { font-weight: 600; color: #e2e8f0; }
+        .log-conf { padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+        .log-conf.high { background: #22c55e22; color: #22c55e; }
+        .log-conf.low  { background: #ef444422; color: #ef4444; }
+        .log-time { color: #64748b; font-size: 0.75rem; }
+
+        .footer-note { text-align: center; color: #475569; font-size: 0.75rem; margin-top: 16px; padding: 8px; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <header class="header">
+        <h1>{{ model_name }}</h1>
+        <div class="status">
+            <div class="status-dot"></div>
+            <span>LIVE — {{ model_name }}</span>
+        </div>
+    </header>
+
+    <div class="main">
+        <div class="video-panel">
+            <div class="panel-header">
+                <span>Annotated Feed</span>
+                <span class="badge" id="fps-badge">-- FPS</span>
+            </div>
+            <div class="video-container">
+                <img src="/video_feed" alt="Live Feed">
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="info-card">
+                <h3>Registered Employees</h3>
+                <div class="class-list">
+                    {% for name in class_names %}
+                    <span class="class-tag">{{ name }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="info-card">
+                <h3>Employee Sightings</h3>
+                <p style="font-size:0.75rem; color:#475569; margin-bottom:8px;">
+                    Logged once every {{ cooldown }}s per person.
+                    Unknown faces counted in stats only.
+                </p>
+                <div id="log-container" class="log-container">
+                    <div style="color:#64748b; font-size:0.85rem; text-align:center; padding:20px;">
+                        Waiting for recognised employees...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+setInterval(() => {
+    fetch('/api/stats').then(r => r.json()).then(data => {
+        document.getElementById('fps-badge').innerText = data.fps.toFixed(1) + ' FPS';
+
+        const el = document.getElementById('log-container');
+        if (data.recent_detections && data.recent_detections.length > 0) {
+            el.innerHTML = data.recent_detections.map(d => {
+                const cls = d.confidence >= 50 ? 'high' : 'low';
+                const parts = d.time.split(' ');
+                return `<div class="log-entry">
+                    <span class="log-name">${d.name}</span>
+                    <span class="log-conf ${cls}">${d.confidence}%</span>
+                    <span class="log-time" title="${parts[0] || ''}">${parts[1] || d.time}</span>
+                </div>`;
+            }).join('');
+        }
+    }).catch(() => {});
+}, 2000);
+</script>
+</body>
+</html>
